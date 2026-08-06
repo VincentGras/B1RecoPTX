@@ -1,6 +1,6 @@
 %%%%%%% Encoding Matrices %%%%%%%%
-%%%%%%%  saturat modes: X = [0 XSAT] := [O SAT_] %%%%%%%%%
-%%%%%%%  readout modes: Y = [Y0 YSAT] := [READ_ SAT_] %%%%%%%%%
+%%%%%%%  saturation modes: X = [0 XSAT] := [O SAT_] %%%%%%%%%
+%%%%%%%  readout modes:    Y = [Y0 YSAT] := [READ_ SAT_] %%%%%%%%%
 
 
 classdef VCCoptimize < handle
@@ -10,7 +10,7 @@ classdef VCCoptimize < handle
         READ_ = eye(8)/sqrt(8);
         SAT_ = eye(8)/sqrt(8); 
         Vmax = 165; % V
-        b1 = []; % rad/s/V, Nc x Nvoxel matrix (unit uT/Volt) rad/V/s
+        b1 = []; % rad/s/V, Ntx x Nvoxel matrix (unit uT/Volt) rad/V/s
 
         maxcond_read = 2; 
         maxcond_sat = 2; 
@@ -39,7 +39,7 @@ classdef VCCoptimize < handle
 
 
         function q = new(p)
-            q = VCCoptimize_ND(p);          
+            q = VCCoptimize(p);          
         end
             
       
@@ -75,7 +75,7 @@ classdef VCCoptimize < handle
 
 
         function val=getI(p)
-            val = 1/pi * p.Vmax *1e-3;
+            val = 1/pi * p.Vmax * 1e-3;
         end
 
         function val = getNc(p) % number of transmit channels
@@ -126,15 +126,12 @@ classdef VCCoptimize < handle
 
         function y = optimvec_read(p)
             yc = reshape(p.getREAD(), p.getNc * p.getNc, 1);
-            y = cat(1, real(yc), imag(yc));
-            
+            y = cat(1, real(yc), imag(yc));       
         end
         
-        function x = optimvec_sat(p)
-            
+        function x = optimvec_sat(p)     
             xc = reshape(p.getSAT(), p.getNc * p.getNsat, 1);
-            x = cat(1, real(xc), imag(xc));
-            
+            x = cat(1, real(xc), imag(xc));         
         end
         
         
@@ -237,7 +234,7 @@ classdef VCCoptimize < handle
         end
 
 
-        function MatAlpha = getMSAT_actuel(p) % normalized sat modes + zeros for non-sat cycles
+        function MatAlpha = getMSAT(p) % normalized sat modes + zeros for non-sat cycles
             sat=p.getSAT();
             scaleA=max(abs(sat(:))); 
             MatAlpha=p.getSAT()/scaleA; 
@@ -245,7 +242,7 @@ classdef VCCoptimize < handle
         end
 
         
-        function MatBeta = getMREAD_actuel(p) % rescale to the same average value for two matrices
+        function MatBeta = getMREAD(p) % rescale to the same average value for two matrices
 
             read=p.getREAD();
             sat=p.getSAT();
@@ -271,13 +268,13 @@ classdef VCCoptimize < handle
         end
 
 
-        function M = Alpha(p) % изменить имя
-            M=p.get_FAdist_norm(p.getMSAT_actuel())*p.FAsat_nom; % V*s
+        function M = Alpha(p)
+            M=p.get_FAdist_norm(p.getMSAT())*p.FAsat_nom; 
         end
 
 
         function M = Beta(p)
-            M=p.get_FAdist_norm(p.getMREAD_actuel())*p.FAread_nom;
+            M=p.get_FAdist_norm(p.getMREAD())*p.FAread_nom;
         end
  
 
@@ -288,26 +285,25 @@ classdef VCCoptimize < handle
             end
 
 
-            Alpha=p.Alpha();
-            Beta=p.Beta();
+
             
             s=newline;
             s = [s, sprintf('# Nsat = %d\n', p.getNsat)];
             s = [s, sprintf('# Cond_read = %.3f\n', cond(p.READ_))];
             s = [s, sprintf('# Cond_sat = %.3f\n', cond(p.SAT_))];
 
+%             Alpha=p.Alpha();
+%             Beta=p.Beta();
+%             s = [s, sprintf(strcat("# mean alpha for each mode = ", repmat('%.3f ', 1, size(Alpha,1))), mean(Alpha,2))];
+%             s = [s, sprintf("# mean alpha averaged over modes =  %.3f", mean(Alpha(any(Alpha,2),:),'all'))];
+%             s = [s, sprintf("# min max alpha over modes =  %.3f", min(max(Alpha,[],1)))];
+% 
+%             s = [s, sprintf(strcat("# mean beta angles for each mode = ", repmat('%.3f ', 1, size(Beta,1))), mean(Beta,2))];
+%             s = [s, sprintf("# mean beta angles averaged over modes =  %.3f", mean(Beta(:)))];
+%             s = [s, sprintf("# min max beta over modes =  %.3f", min(max(Beta,[],1)))];
 
-            s = [s, sprintf(strcat("# mean alpha for each mode = ", repmat('%.3f ', 1, size(Alpha,1))), mean(Alpha,2))];
-            s = [s, sprintf("# mean alpha averaged over modes =  %.3f", mean(Alpha(any(Alpha,2),:),'all'))];
-            s = [s, sprintf("# min max alpha over modes =  %.3f", min(max(Alpha,[],1)))];
 
-            s = [s, sprintf(strcat("# mean beta angles for each mode = ", repmat('%.3f ', 1, size(Beta,1))), mean(Beta,2))];
-            s = [s, sprintf("# mean beta angles averaged over modes =  %.3f", mean(Beta(:)))];
-            s = [s, sprintf("# min max beta over modes =  %.3f", min(max(Beta,[],1)))];
-
-            
-
-            XFLexpoxflparam(fname, p.getMSAT_actuel(), p.getMREAD_actuel(), p.Vmax, p.FAsat_nom, p.FAread_nom);
+            XFLexpoxflparam(fname, p.getMSAT(), p.getMREAD(), p.Vmax, p.FAsat_nom, p.FAread_nom);
 
 
             if (~isempty(fname))

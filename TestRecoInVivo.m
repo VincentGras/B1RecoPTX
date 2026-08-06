@@ -1,32 +1,38 @@
 addpath .\Functions\
 
 paramfile='.\Schemes\InVivo_vcc03.xflparam.txt'; % file with encoding scheme
-data = load('.\DataInVivo.mat').data; % acquired satTFL data (acquisition cycles x rx channels x voxels)
+data = load('.\DataInVivo.mat').data; % acquired satTFL data (interferometric modes x rx channels x voxels)
 Mask = load('.\DataInVivo.mat').Mask; % Brain mask
 
 % read the reference voltage and nominal flip angles alpha and beta from the text file to calculate RF pulse integrals IA and IB
 fid = fopen(paramfile,'r');
 numLines = 4;
 for ii = 1:numLines
+
     line = fgetl(fid); 
-    if (~isempty(regexpi(line, 'Vref')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        Vref=str2num(a);
+    if ~ischar(line)
+        break;
     end
 
-    if (~isempty(regexpi(line, 'alpha_nominal')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        alpha_nom=str2num(a);
+    if contains(line,"Vref")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        Vref = str2double(a);
     end
 
-    if (~isempty(regexpi(line, 'beta_nominal')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        beta_nom=str2num(a);
+    if contains(line,"alpha_nominal")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        alpha_nom = str2double(a);
     end
+
+    if contains(line,"beta_nominal")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        beta_nom = str2double(a);
+    end
+
 end
 fclose(fid);
 
-% read saturation (alphaMat) and readout (betaMat) encoding matrices (unitless), Nch x Ncyc (Tx channels x acquisition cycles)
+% read saturation (alphaMat) and readout (betaMat) encoding matrices (unitless), Ntx x Nlcc (Tx channels x interferometric modes)
 [alphaMat, betaMat] = readXFLParametersFromFile(paramfile);
  
 RFPulseIntegral = beta_nom/180 * Vref * 1e-3; % Volt.s
@@ -37,14 +43,14 @@ betaMat = RFPulseIntegral * betaMat;
 Ntx = size(alphaMat, 1); % number of transmit channels
 Nrx = size(data, 2); % number of receive channels
 Nvox = size(data,3); % number of voxels
-Ncycles = size(alphaMat, 2); % number of acquisition cycles
+Ncycles = size(alphaMat, 2); % number of acquisition cycles (interferometric modes)
 test_noise_thresh = 1 - Ncycles^-1;  % noise threshold
 
 
 b1p = nan(Ntx, Nvox); % estimated B1+ maps
 b1m = nan(Nrx, Nvox); % estimated B1- maps
 residual = inf(1, Nvox); % residual between the satTFL data and the signal calculated from the model using the estimated B1+ 
-b1val =  [5, 10, 20];% initialization for the non-convex optimization of the sum-of-squares transmit profile
+b1val =  [5, 10, 20]; % initialization for the non-convex optimization of the sum-of-squares transmit profile
 t = nan(1, Nvox); % Test whether the voxel is dominated by noise
 
 % reconstruction across all voxels
@@ -66,8 +72,9 @@ if (~isempty(b1m))
 end
 
 % visualization of the reconstructed B1+ maps
+viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), abs(b1p))),'cscale',[0 30]); colormap('jet') % ampl
+viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), angle(b1p))),'cscale',[-pi pi]); colormap('jet') % phase
 
-viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), b1p)),'cscale',[0 30]); colormap('jet')
-
-viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), angle(b1p))),'cscale',[-pi pi]); colormap('jet')
-
+% visualization of the reconstructed B1- maps
+viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), abs(b1m))),'cscale',[0 0.2]); colormap('jet') % ampl
+viewp(1, applyMask(Mask, vect2map(ones(size(Mask)), angle(b1m))),'cscale',[-pi pi]); colormap('jet') % phase

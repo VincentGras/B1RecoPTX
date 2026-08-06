@@ -2,11 +2,11 @@
 
 addpath .\Functions\
 
-db = '.\Avanti2_B1maps_Agar.map.mat'; % file with simulated B1+ fields (Nx x Ny x Nz x Nch, T/V)
+db = '.\Avanti2_B1maps_Agar.map.mat'; % file with simulated B1+ fields (Nx x Ny x Nz x Ntx, T/V)
 gyr = 42577000;
 dataB1 = load(db);
 data.M = dataB1.Mask; % mask
-data.b1 = map2vect(dataB1.Mask,  dataB1.B1map).' * (2*pi) * gyr; % (transform to vector form Nch x Nvox, rad/s/V)
+data.b1 = map2vect(dataB1.Mask,  dataB1.B1map).' * (2*pi) * gyr; % (transform to vector form Ntx x Nvox, rad/s/V)
 
 paramfile='.\Schemes\Sphere_vcc03_Acond2_Bcond2.xflparam.txt'; % file with encoding scheme
 
@@ -14,21 +14,27 @@ paramfile='.\Schemes\Sphere_vcc03_Acond2_Bcond2.xflparam.txt'; % file with encod
 fid = fopen(paramfile,'r');
 numLines = 4;
 for ii = 1:numLines
+
     line = fgetl(fid); 
-    if (~isempty(regexpi(line, 'Vref')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        Vref=str2num(a);
+    if ~ischar(line)
+        break;
     end
 
-    if (~isempty(regexpi(line, 'alpha_nominal')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        alpha_nom=str2num(a);
+    if contains(line,"Vref")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        Vref = str2double(a);
     end
 
-    if (~isempty(regexpi(line, 'beta_nominal')))
-        a=regexp(line, '(\d*)', 'match', 'once' );
-        beta_nom=str2num(a);
+    if contains(line,"alpha_nominal")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        alpha_nom = str2double(a);
     end
+
+    if contains(line,"beta_nominal")
+        a = regexp(line,'\d+\.?\d*','match','once');
+        beta_nom = str2double(a);
+    end
+
 end
 fclose(fid);
 
@@ -59,10 +65,10 @@ fprintf("max alpha =  %.2f \n", max_alpha );
 fprintf("min of max alpha over the LCCs =  %.2f \n", min_max_alpha );
 
 view3p(applyMask(data.M, vect2map(data.M,  FA_alpha)),'cscale', [0 180]);
-annotation('textbox',[0.4 0.7 0.1 0.1],'String', '\alpha','FontSize',20,'EdgeColor','none') %04 038 039
+annotation('textbox',[0.4 0.7 0.1 0.1],'String', '\alpha','FontSize', 20,'EdgeColor','none') 
 
 view3p(applyMask(data.M, vect2map(data.M,  max(FA_alpha,[],1))),'cscale', [0 180]); 
-annotation('textbox',[0.4 0.7 0.1 0.1],'String', 'max \alpha','FontSize',20,'EdgeColor','none') %04 038 039
+annotation('textbox',[0.4 0.7 0.1 0.1],'String', 'max \alpha','FontSize', 20,'EdgeColor','none')
 
 figure, 
 for i=1:size(FA_alpha,1)
@@ -88,10 +94,10 @@ fprintf("max beta =  %.2f \n", max_beta );
 fprintf("min of max beta over the LCCs =  %.2f \n", min_max_beta );
 
 view3p(applyMask(data.M, vect2map(data.M,  FA_beta)),'cscale', [0 20]);
-annotation('textbox',[0.4 0.7 0.1 0.1],'String', '\beta','FontSize',20,'EdgeColor','none') %04 038 039
+annotation('textbox',[0.4 0.7 0.1 0.1],'String', '\beta','FontSize', 20,'EdgeColor','none') 
 
 view3p(applyMask(data.M, vect2map(data.M,  max(FA_beta,[],1))),'cscale', [0 20]); 
-annotation('textbox',[0.4 0.7 0.1 0.1],'String', 'max \beta','FontSize',20,'EdgeColor','none') %04 038 039
+annotation('textbox',[0.4 0.7 0.1 0.1],'String', 'max \beta','FontSize', 20,'EdgeColor','none') 
 
 figure,
 for i=1:size(FA_beta,1)
